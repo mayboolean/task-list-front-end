@@ -1,18 +1,19 @@
-// import { useState, useEffect } from 'react';
-// import TaskList from './components/TaskList.jsx';
-// import './App.css';
-// import axios from 'axios';
+import { useState, useEffect } from 'react';
+import TaskList from './components/TaskList.jsx';
+import './App.css';
+import axios from 'axios';
+import NewTaskForm from './components/NewTaskForm';
 
-// const kBaseUrl = 'http://localhost:5000';
+const kBaseUrl = 'http://localhost:5000';
 
-// const taskApiToJson = task => {
-//   // unpack the fields of a task, renaming is_complete to isComplete in the
-//   // process.
-//   const { description, id, is_complete: isComplete, title } = task;
+const taskApiToJson = task => {
+  // unpack the fields of a task, renaming is_complete to isComplete in the
+  // process.
+  const { description, id, is_complete: isComplete, title } = task;
 
-//   // reassemble the fields into an object, now with JS-style fields
-//   return { description, id, isComplete, title };
-// };
+  // reassemble the fields into an object, now with JS-style fields
+  return { description, id, isComplete, title };
+};
 
 // // helper function to get all tasks. this function makes the axios call, and
 // // unpacks the response data (returning a list of task objects), or throwing
@@ -20,25 +21,17 @@
 // // be sure to return the final promise, so that the component can add additional
 // // then/catch clauses to update its state or do any additional error handling
 
-// const getTasksAsync = () => {
-//   // return the end of the promise chain to allow further then/catch calls
-//   return axios.get(`${kBaseUrl}/tasks`)
-//     .then(response => {
-//     // convert the received tasks from having python-like keys to JS-like keys
-//     // using a helper function (taskApiToJson) that will be run on each task
-//     // in the result.
+const getTasksAsync = async () => {
+  try {
+    const response = await axios.get(`${kBaseUrl}/tasks`);
 
-//       // the value we return from a then will become the input to the next then
-//       return response.data.map(taskApiToJson);
-//     })
-//     .catch(err => {
-//       console.log(err);
+    return response.data.map(taskApiToJson);
+  } catch (err) {
+    console.log(err);
 
-//       // anything we throw will skip over any intervening then clauses to become
-//       // the input to the next catch clause
-//       throw new Error('error fetching tasks');
-//     });
-// };
+    throw new Error('error fetching tasks');
+  }
+};
 
 // // helper function to mark a task complete or incomplete. To do so, we need
 // // to know the id of the task being modified, as well as whether we are
@@ -46,38 +39,34 @@
 // // endpoint to use (since marking complete and incomplete are two different
 // // endpoints in task-list).
 
-// const updateTaskAsync = (id, markComplete) => {
-//   const endpoint = markComplete ? 'mark_complete' : 'mark_incomplete';
+const updateTaskAsync = async (id, markComplete) => {
+  const endpoint = markComplete ? 'mark_complete' : 'mark_incomplete';
 
-//   // return the end of the promise chain to allow further then/catch calls
-//   return axios.patch(`${kBaseUrl}/tasks/${id}/${endpoint}`)
-//     .then(response => {
-//     // convert the received task from having python-like keys to JS-like keys
-//     // using a helper function (taskApiToJson)
+  try {
+    const response = await axios.patch(`${kBaseUrl}/tasks/${id}/${endpoint}`);
+    return taskApiToJson(response.data.task);
+  } catch (err) {
+    console.log(err);
 
-//       // the value we return from a then will become the input to the next then
-//       return taskApiToJson(response.data.task);
-//     })
-//     .catch(err => {
-//       console.log(err);
+    throw new Error(`error updating task ${id}`);
+  }
+};
 
-//       // anything we throw will skip over any intervening then clauses to become
-//       // the input to the next catch clause
-//       throw new Error(`error updating task ${id}`);
-//     });
-// };
+const deleteTaskAsync = async id => {
+  try {
+    await axios.delete(`${kBaseUrl}/tasks/${id}`);
+  } catch (err) {
+    console.log(err);
 
-// // helper function to delete a task. This function makes the asynchronous API
-// // call using axios to delete the specified task.
+    throw new Error(`error deleting task ${id}`);
+  }
+};
 
-// const deleteTaskAsync = id => {
-//   // return the end of the promise chain to allow further then/catch calls
-//   // note no .then here since there's nothing useful for us to process from the
-//   // response. it returns a status message structure:
-//   // { "details": "Task 3 \"do the other thing\" successfully deleted" }
-//   return axios.delete(`${kBaseUrl}/tasks/${id}`)
-//     .catch(err => {
-//       console.log(err);
+const App = () => {
+  const [tasks, setTasks] = useState([]);
+  useEffect(() => {
+    refreshTasks();
+  }, []);
 
 //       // anything we throw will skip over any intervening then clauses to become
 //       // the input to the next catch clause
@@ -85,166 +74,103 @@
 //     });
 // };
 
-// const App = () => {
-//   const [tasks, setTasks] = useState([]);  // initialize to an empty list of tasks
+  const refreshTasks = async () => {
+    try {
+      const tasks = await getTasksAsync();
+      setTasks(tasks);
+    } catch (err) {
+      console.log(err.message);
+    }
+  };
 
-//   // schedule our first refresh to run when the component mounts
-//   useEffect(() => {
-//     refreshTasks();
-//   }, []);
+  const updateTask = async id => {
+    const task = tasks.find(task => task.id === id);
 
-//   const refreshTasks = () => {
-//     return getTasksAsync()
-//       .then((tasks) => {
-//         setTasks(tasks);
-//       })
-//       .catch(err => {
-//         console.log(err.message);
-//       });
-//   };
-//   // use our helper to get the asynchronous list of tasks from axios, then
-//   // chain a callback to set our tasks state once we have the result
+    if (!task) { return; }
 
+    try {
+      const newTask = await updateTaskAsync(id, !task.isComplete);
 
-//   // use our helper to asynchronously update the specified task, then
-//   // chain a callback to set our tasks state once a successful result is
-//   // returned. We duplicate the old list of tasks, but replace the task
-//   // corresponding to our update with the task value we got back from our
-//   // helper.
-
-//   const updateTask = id => {
-//     // find the task we want to update
-//     const task = tasks.find(task => task.id === id);
-
-//     // If we didn't find the task for some reason, just return an empty promise
-//     // to maintain type compatibility with the main code flow.
-//     if (!task) { return Promise.resolve(); }
-
-//     // start the async task to toggle the completion
-//     return updateTaskAsync(id, !task.isComplete)
-//       .then(newTask => {
-//       // use the callback style of updating the tasks list
-//       // oldTasks will receive the current contents of the tasks state
-//         setTasks(oldTasks => {
-//         // return the new value for the tasks state
-//           return oldTasks.map(task => {
-//             if (task.id === newTask.id) {
-//             // if this task is the one we just updated, return the new data we
-//             // got from the api result to use in the tasks list
-//               return newTask;
-//             } else {
-//             // otherwise, it's an existing task, so just use it
-//               return task;
-//             }
-//           });
-//         });
-//       })
-//       .catch(err => {
-//         console.log(err.message);
-//       });
-//   };
-
-//   // use our helper to asynchronously delete the specified task, then
-//   // chain a callback to set our tasks state once a successful result is
-//   // returned. Notice that the input to the .then is empty, since we didn't
-//   // return anything from the .then of the helper. But if an error had
-//   // occurred, the code would jump over the .then and run the .catch instead
-
-//   const deleteTask = id => {
-//     return deleteTaskAsync(id)
-//       .then(() => {
-//       // use the callback style of updating the tasks list
-//       // oldTasks will receive the current contents of the tasks state
-//         setTasks(oldTasks => {
-//         // return the new value for the tasks state
-//           return oldTasks.filter(task => task.id !== id);
-//         });
-//       })
-//       .catch(err => {
-//         console.log(err.message);
-//       });
-//   };
-
-//   return (
-//     <div className="App">
-//       <header className="App-header">
-//         <h1>Ada&apos;s Task List</h1>
-//       </header>
-//       <main>
-//         <div>
-//           <TaskList
-//             tasks={tasks}
-//             onToggleCompleteCallback={updateTask}
-//             onDeleteCallback={deleteTask}
-//           />
-//         </div>
-//       </main>
-//     </div>
-//   );
-// };
-
-// export default App;
+      setTasks(oldTasks => {
+        return oldTasks.map(task => {
+          if (task.id === newTask.id) {
+            return newTask;
+          } else {
+            return task;
+          }
+        });
+      });
+    } catch (err) {
+      console.log(err.message);
+    }
+  };
 
 
-import TaskList from './components/TaskList.jsx';
-import './App.css';
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-
-const kBaseUrl = 'http://localhost:5000';
-
-const taskApiToJson = task => {
-  const {description, id, is_complete: isComplete, title} = task;
-  return { description, id , isComplete, title};
-};
-
-const getTaskAsync = () => {
-  return axios.get(`${kBaseUrl}/tasks`)
-    .then(response => {
-      return response.data.map(taskApiToJson);
-    })
-    .catch(err => {
+  const deleteTaskAsync = async id => {
+    try {
+      await axios.delete(`${kBaseUrl}/tasks/${id}`);
+    } catch (err) {
       console.log(err);
-      throw new Error('error fetching tasks');
-    });
-};
+      throw new Error(`error deleting task ${id}`);
+    }
+  };
 
-const App = () => {
-  // state
-  const [task, setTask] = useState([]);
+  // const addTaskData = (newTask) => {
+  //   const nextId = Math.max(0, ...taskData.map((task) => task.id)) + 1;
 
-  useEffect(() => {
-    refreshTasks();
-  }, []);
+  //   // Duplicate the student list
+  //   const newTasktList = [...taskData];
 
-  const refreshTasks = () => {
-    return getTaskAsync()
-      .then((tasks) => {
-        setTask(tasks);
-      })
-      .catch(err => {
-        console.log(err.message);
+  //   newTaskList.push({
+  //     id: nextId,
+  //     titleData: newTask.titleData,
+  //     descriptionData: newdescription.descriptionData,
+  //     isComplete: false
+  //   });
+
+  //   setTaskData(newTaskList);
+
+  const addTaskAsync = async taskData => {
+    const { title, isComplete } = taskData;
+
+    const description = 'created in Task List Front End';
+    const completedAt = isComplete ? new Date() : null;
+
+    const body = { title, description, 'completed_at': completedAt };
+    try {
+      const response = await axios.post(`${kBaseUrl}/tasks`, body);
+      return taskApiToJson(response.data.task);
+    } catch (err) {
+      console.log(err);
+      throw new Error('error creating task');
+    }
+  };
+
+  const deleteTask = async id => {
+    try {
+      await deleteTaskAsync(id);
+      setTasks(oldTasks => {
+        return oldTasks.filter(task => task.id !== id);
       });
+    } catch (err) {
+      console.log(err.message);
+    }
   };
 
-  // to update the TASKS data state to change isComplete when button is clicked
-  const toggleComplete = (taskId) => {
-    setTask(tasks => {
-      return tasks.map(task => {
-        if (task.id === taskId) {
-          return {...task, isComplete: !task.isComplete};
-        } else {
-          return task;
-        }
-      });
-    });
+  const addTask = async taskData => {
+    try {
+      const task = await addTaskAsync(taskData);
+      setTasks(oldTasks => [...oldTasks, task]);
+    } catch (err) {
+      console.log(err.message);
+    }
   };
-  // OLD DELETE TASK
-  const deleteTask = (taskId) => {
-    setTask(task => task.filter(task => {
-      return task.id != taskId;
-    }));
-  };
+  // // OLD DELETE TASK
+  // const deleteTask = (taskId) => {
+  //   setTask(task => task.filter(task => {
+  //     return task.id != taskId;
+  //   }));
+  // };
 
 
   return (
@@ -253,11 +179,16 @@ const App = () => {
         <h1>Ada&apos;s Task List</h1>
       </header>
       <main>
-        <div>{<TaskList
-          tasks={task}
-          onTaskToggleCompletion={toggleComplete}
-          onTaskDelete={deleteTask}
-        />}</div>
+        <div>
+          <TaskList
+            tasks={tasks}
+            onToggleCompleteCallback={updateTask}
+            onDeleteCallback={deleteTask}
+          />
+          <NewTaskForm 
+            onAddTaskCallback={addTask}
+          />
+        </div>
       </main>
     </div>
   );
