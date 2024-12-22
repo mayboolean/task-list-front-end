@@ -1,26 +1,34 @@
 import TaskList from './components/TaskList.jsx';
 import './App.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
-const TASKS = [
-  {
-    id: 1,
-    title: 'Mow the lawn',
-    isComplete: false,
-  },
-  {
-    id: 2,
-    title: 'Cook Pasta',
-    isComplete: true,
-  },
-];
+const kBaseUrl = 'http://localhost:5000';
 
-
+const getAllTasksApi = () => {
+  return axios.get(`${kBaseUrl}/tasks`)
+    .then( response => {
+      const newTasks = response.data;
+      console.log(newTasks);
+      return newTasks;
+    });
+};
 
 const App = () => {
   // state
-  const [taskData, setTaskData] = useState(TASKS);
+  const [taskData, setTaskData] = useState([]);
 
+  const getAllTasks = () => {
+    // invoke API function
+    getAllTasksApi()
+      .then(tasks => { // chain a then, where a tasks is passed in
+        setTaskData(tasks);
+      });
+  };
+
+  useEffect(() => {
+    getAllTasks();
+  }, []);
   // to update the TASKS data state to change isComplete when button is clicked
   const toggleComplete = (taskId) => {
     setTaskData(tasks => {
