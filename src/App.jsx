@@ -5,12 +5,32 @@ import axios from 'axios';
 
 const kBaseUrl = 'http://localhost:5000';
 
+// convert API response into JS case is_complete -> isComplete
+// make a new object that copies response with the correct keys
+const reformatAPI = (apiTasks) => {
+  const newTask = {
+    ...apiTasks,
+    isComplete: apiTasks.is_complete // makes new JS case key
+  };
+  delete newTask.is_complete;
+  return newTask;
+};
+
+
 const getAllTasksApi = () => {
   return axios.get(`${kBaseUrl}/tasks`)
     .then( response => {
-      const newTasks = response.data;
-      console.log(newTasks);
+      const apiTasks = response.data;
+      // convert api response
+      const newTasks = apiTasks.map(reformatAPI);
       return newTasks;
+    });
+};
+
+const deleteTaskAPI = (taskId) => {
+  return axios.delete(`${kBaseUrl}/tasks/${taskId}`)
+    .catch(error => {
+      console.log(error);
     });
 };
 
@@ -43,9 +63,12 @@ const App = () => {
   };
 
   const deleteTask = (taskId) => {
-    setTaskData(taskData => taskData.filter(task => {
-      return task.id != taskId;
-    }));
+    deleteTaskAPI(taskId)
+      .then(() => {
+        setTaskData(taskData => taskData.filter(task => {
+          return task.id != taskId;
+        }));
+      });
   };
 
 
